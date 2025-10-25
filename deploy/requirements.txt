@@ -1,0 +1,6 @@
+torch>=1.12.0
+evdev
+sshkeyboard
+pyyaml>=6.0
+streamlit>=1.28.0
+numpy>=1.21.0
