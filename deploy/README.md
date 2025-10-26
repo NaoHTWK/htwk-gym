@@ -1,162 +1,67 @@
 # Deploy on Booster Robot
 
-This directory contains deployment scripts and tools for running trained policies on the Booster robot, including real-time observation editing capabilities.
+This directory contains scripts and utilities for deploying trained policies on the Booster robot, including support for real-time parameter editing.
 
-## Installation
+## Quickstart: Setup & Run Deployment Script
 
-Follow these steps to set up your environment:
+Follow these steps to set up your environment and deploy a policy on the robot:
 
-1. Install Python dependencies:
-
-    ```sh
-    $ pip install -r requirements.txt
-    ```
-
-2. Install Booster Robotic SDK:
-
-    Refer to the [Booster Robotics SDK Guide](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f#share-WDzedC8AiovU8gxSjeGcQ5CInSf) and ensure you complete the section on [Compile Sample Programs and Install Python SDK](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f#share-EI5fdtSucoJWO4xd49QcE5CInSf).
-
-3. Install Streamlit (for observation editor):
-
-    ```sh
-    $ pip install streamlit
-    ```
-
-## Deployment Scripts
-
-### 1. Base Walk Deployment (`deploy_base_walk.py`)
-
-This script deploys the base walking policy trained for basic locomotion.
-
-**Features:**
-- Implements basic walking gait control
-- Uses the standard Policy class from `utils.policy`
-- Provides real-time robot control via Booster SDK
-- Supports remote control commands (vx, vy, vyaw)
-
-**Usage:**
-```sh
-$ python deploy_base_walk.py --config=Base_Walk.yaml --net=127.0.0.1
-```
-
-**Parameters:**
-- `--config`: Configuration file name (must be in `configs/` folder)
-- `--net`: Network interface for SDK communication (default: `127.0.0.1`)
-
-### 2. Parameter Walk Deployment (`deploy_parameter_walk.py`)
-
-This script deploys the parameterized walking policy with enhanced observation control capabilities.
-
-**Features:**
-- Implements parameterized walking with adjustable gait parameters
-- Uses the Thomas Policy class from `utils.policy_thomas`
-- Supports real-time observation value modification (obs[9-15])
-- Enhanced control over gait frequency, foot yaw, body orientation, and foot positioning
-- Compatible with the Streamlit observation editor
-
-**Usage:**
-```sh
-$ python deploy_parameter_walk.py --config=Parameter_Walk.yaml --net=127.0.0.1
-```
-
-**Parameters:**
-- `--config`: Configuration file name (must be in `configs/` folder)
-- `--net`: Network interface for SDK communication (default: `127.0.0.1`)
-
-## Streamlit Observation Editor
-
-The `streamlit_observation_editor.py` provides a web-based interface for real-time control of robot parameters during deployment.
-
-### Features
-
-- **Real-time Control**: Modify observation values 9-15 and walk commands (vx, vy, vyaw) while the robot is running
-- **Live Status Monitoring**: View current parameter values and robot status
-- **Configuration Management**: Load different configuration files dynamically
-- **Export Capabilities**: Download current parameter settings as JSON
-- **Intuitive Interface**: Slider-based controls with parameter descriptions
-
-### Controllable Parameters
-
-**Observation Values (obs[9-15]):**
-- `obs[9]`: Gait Frequency - Controls walking speed and rhythm
-- `obs[10]`: Foot Yaw (Left) - Left foot orientation adjustment
-- `obs[11]`: Foot Yaw (Right) - Right foot orientation adjustment  
-- `obs[12]`: Body Pitch Target - Forward/backward body lean
-- `obs[13]`: Body Roll Target - Left/right body lean
-- `obs[14]`: Feet Offset X - Forward/backward foot positioning
-- `obs[15]`: Feet Offset Y - Left/right foot positioning
-
-**Walk Commands:**
-- `vx`: Forward/backward velocity (-1.0 to 1.0)
-- `vy`: Lateral velocity (-1.0 to 1.0) 
-- `vyaw`: Yaw rotation velocity (-3.0 to 3.0)
-
-### Usage
-
-1. **Start the deployment script first:**
+1. **Copy the `deploy/` folder to your robot (Intel Board recommended):**
    ```sh
-   $ python deploy_parameter_walk.py --config=Parameter_Walk.yaml
+   $ scp -r deploy/ <username>@<robot_ip>:/<destination>/
    ```
 
-2. **Launch the Streamlit editor:**
+2. **SSH into the robot and set up your environment:**
    ```sh
-   $ streamlit run streamlit_observation_editor.py
+   $ ssh <username>@<robot_ip>
+   $ cd /<destination>/deploy
+   $ python3 -m venv venv
+   $ source venv/bin/activate
+   $ pip install -r requirements.txt
    ```
+   - **Install the Booster Robotics SDK:**  
+     Follow the [Booster Robotics SDK Guide](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f) and complete the [Compile Sample Programs and Install Python SDK](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f#share-EI5fdtSucoJWO4xd49QcE5CInSf) section.
 
-3. **Access the web interface:**
-   - Open your browser to `http://<robot_ip>:8501`
-   - Select the appropriate configuration file
-   - Use sliders to adjust parameters in real-time
-   - Monitor live status and current values
 
-### Integration
+3. **Prepare the robot:**
+   - Power on the robot.
+   - Switch robot to **PREP Mode**.
+   - Place the robot in a stable standing position in an open area.
 
-The observation editor communicates with the deployment script through a shared observation controller (`utils.observation_controller`), enabling seamless real-time parameter adjustment without interrupting robot operation.
+4. **Deploy the policy:**
+   - **For basic walking:**
+     ```sh
+     $ python deploy_base_walk.py --config=Base_Walk.yaml --net=127.0.0.1
+     ```
+   - **For parameterized walking (with real-time editing):**
+     ```sh
+     $ python deploy_parameter_walk.py --config=Parameter_Walk.yaml --net=127.0.0.1
+     $ streamlit run streamlit_observation_editor.py
+     ```
+     - Open your browser at `http://<robot_ip>:8501` to access the web-based control interface.
+     - Use interface sliders to adjust gait parameters and commands in real time.
 
-## Complete Usage Workflow
+5. **Exit Safely:**
+   - Press `Ctrl+C` to stop deployment scripts.
+   - Switch robot back to **PREP Mode** before turning off or moving the robot.
 
-1. **Prepare the robot:**
-   - **Intel Board (Recommended):** The easiest way to deploy is directly on the robot's Intel board. This eliminates network latency and provides the most stable connection.
-   - **Simulation:** Set up simulation using [Webots](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f#share-IsE9d2DrIow8tpxCBUUcogdwn5d) or [Isaac Sim](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f#share-Jczjd4UKMou7QlxjvJ4c9NNfnwb)
-   - **Real World:** Power on robot, switch to PREP Mode, place in stable standing position
+---
 
-2. **Choose deployment method:**
-   
-   **For basic walking:**
-   ```sh
-   $ python deploy_base_walk.py --config=Base_Walk.yaml
-   ```
-   
-   **For parameterized walking with real-time control:**
-   ```sh
-   $ python deploy_parameter_walk.py --config=Parameter_Walk.yaml
-   $ streamlit run streamlit_observation_editor.py
-   ```
+### Notes
 
-3. **Control the robot:**
-   - Use keyboard controls (if implemented) for basic movement
-   - Use Streamlit interface for fine-tuned parameter adjustment
-   - Monitor robot status and performance
+- **Configuration files:**  
+  All config files are in `configs/` (e.g. `Base_Walk.yaml`, `Parameter_Walk.yaml`). Each contains model paths, control gains, normalization, and limits.
 
-4. **Exit safely:**
-   - Switch robot back to PREP Mode before terminating
-   - Use Ctrl+C to stop deployment scripts gracefully
+- **Real-Time Observation Controls:**  
+  The Streamlit interface lets you adjust gait frequency, foot yaw, body pitch/roll, feet offset, and walk commands on the fly (requires `deploy_parameter_walk.py`).
 
-## Configuration Files
+- **Network interface (`--net`):**  
+  Use `127.0.0.1` if running on the Intel Board. Otherwise, specify the proper FastDDS/network address if deploying remotely or in simulation.
 
-Configuration files are located in the `configs/` directory:
-- `Base_Walk.yaml`: Basic walking policy configuration
-- `Parameter_Walk.yaml`: Parameterized walking policy configuration
+- **SDK & Policy Troubles:**  
+  Ensure the Booster SDK is installed correctly and that model files exist in `models/`. For Streamlit issues, make sure `live_observation_values.json` is being created.
 
-Each configuration file contains:
-- Policy parameters and model paths
-- Robot mechanical parameters
-- Control gains and limits
-- Normalization factors for observations
+- **Robot Safety:**  
+  Always enter/exit PREP Mode carefully and check surroundings before starting motion.
 
-## Troubleshooting
-
-- **Connection Issues**: Verify network interface (`--net` parameter) matches robot setup
-- **Policy Loading**: Ensure model files exist in `models/` directory
-- **Streamlit Issues**: Check that `live_observation_values.json` is being created
-- **Robot Safety**: Always switch to PREP Mode before program termination
+---

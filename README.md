@@ -217,38 +217,93 @@ $ python export_model.py --task=T1/BaseWalk --checkpoint=-1
 ```
 
 #### TensorFlow Lite Export
-For mobile and embedded deployment with optional quantization:
+For deployment in the HTWK Firmware or other tflite based executers:
 ```sh
 # Basic TFLite export
 $ python export_tflite.py --task=T1/BaseWalk --checkpoint=-1
-
-# With dynamic range quantization
-$ python export_tflite.py --task=T1/BaseWalk --checkpoint=-1 --quant dr
-
-# With full int8 quantization
-$ python export_tflite.py --task=T1/BaseWalk --checkpoint=-1 --quant int8
 ```
 
 #### Real-Time Robot Deployment
 For direct deployment to physical robots with live parameter control:
 
-1. **Copy deploy folder to robot:**
+
+
+**Deployment Options:**
+- **Intel Board (Recommended)**: Deploy directly on the robot's Intel board for the easiest setup with no network latency
+- **Simulation**: Use [Webots](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f#share-IsE9d2DrIow8tpxCBUUcogdwn5d) or [Isaac Sim](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f#share-Jczjd4UKMou7QlxjvJ4c9NNfnwb) for simulation testing
+
+
+
+**Transfer Files to Robot:**
+
+3. **Copy deploy folder to robot (Intel Board recommanded):**
    ```sh
    $ scp -r deploy/ <username>@<robot_ip>:/<destination>/
    ```
 
-2. **Execute deployment scripts on robot:**
+**Setup on Robot:**
+
+4. **SSH into robot:**
    ```sh
-   # SSH into robot
    $ ssh <username>@<robot_ip>
+   ```
+
+5. **Navigate to deployment directory and create virtual environment:**
+   ```sh
+   $ cd /<destination>/deploy
+   $ python3 -m venv venv
+   $ source venv/bin/activate
+   ```
+
+6. **Install dependencies in virtual environment:**
+   ```sh
+   $ pip install -r requirements.txt
+   ```
+
+7. **Install Booster Robotics SDK (if not already installed):**
+   
+   Follow the [Booster Robotics SDK Guide](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f) and complete the section on [Compile Sample Programs and Install Python SDK](https://booster.feishu.cn/wiki/DtFgwVXYxiBT8BksUPjcOwG4n4f#share-EI5fdtSucoJWO4xd49QcE5CInSf).
+
+**Prepare Robot:**
+
+8. **Before starting deployment:**
+   - Power on the robot
+   - Switch robot to **PREP Mode**
+   - Place robot in a stable standing position in an open area
+
+**Execute Deployment:**
+
+9. **Activate virtual environment and start deployment scripts on robot:**
+   ```sh
+   # Activate the venv (if starting a new SSH session)
+   $ cd /<destination>/deploy
+   $ source venv/bin/activate
    
    # Basic walking deployment
-   $ python deploy/deploy_base_walk.py --config=Base_Walk.yaml --net=127.0.0.1
+   $ python deploy_base_walk.py --config=Base_Walk.yaml --net=127.0.0.1
 
-   # Parameterized walking with real-time control
-   $ python deploy/deploy_parameter_walk.py --config=Parameter_Walk.yaml --net=127.0.0.1
-   $ streamlit run deploy/streamlit_observation_editor.py
+   # OR Parameterized walking with real-time control
+   $ python deploy_parameter_walk.py --config=Parameter_Walk.yaml --net=127.0.0.1
    ```
+   If you are not deploying on the Intel Board you need to set the ``--net`` to the correct address of the fast dds.
+
+10. **Launch Streamlit observation editor on robot (for parameterized walking):**
+   ```sh
+   # Ensure venv is activated
+   $ source venv/bin/activate
+   $ streamlit run streamlit_observation_editor.py
+   ```
+   
+11. **Access the control interface from your web browser:**
+    - Open your browser on your development machine
+    - Navigate to `http://<robot_ip>:8501` to access the real-time control interface
+    - The Streamlit app runs on the robot and serves the web interface remotely
+
+**Exit Safely:**
+
+12. **To stop deployment:**
+    - Press `Ctrl+C` to gracefully terminate deployment scripts
+    - Switch robot back to **PREP Mode** before turning off or moving robot
 
 #### Pre-trained Models
 HTWK Gym includes pre-trained models in the `deploy/models/` directory:
