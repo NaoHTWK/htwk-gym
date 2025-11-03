@@ -1,0 +1,74 @@
+# Ignore everything by default
+*
+
+# But include these specific directories and files
+!deploy/
+!envs/
+!resources/
+!utils/
+!pretrained_models/
+!export_model.py
+!export_tflite.py
+!play.py
+!train.py
+!requirements.txt
+!README.md
+!htwk_walk01.gif
+!.gitignore
+
+# Include all files within the allowed directories
+!deploy/**
+!envs/**
+!resources/**
+!utils/**
+!pretrained_models/**
+
+# Ignore common Python cache and temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Ignore virtual environments
+venv/
+venv_isaac/
+venv_tf210/
+
+# Ignore logs and videos
+logs/
+videos/
+
+# Ignore Isaac Gym package
+isaacgym/
+IsaacGym_Preview_4_Package.tar.gz
+
+# Ignore IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore git files
+.git/
