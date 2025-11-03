@@ -22,6 +22,7 @@ from utils.recorder import Recorder
 # Dynamic task class loading
 import importlib
 import inspect
+import pkgutil
 
 def get_task_class(task_name):
     """
@@ -75,6 +76,59 @@ def get_task_class(task_name):
     return None
 
 
+def get_model_class(model_name):
+    """
+    Resolve a model class by name. Supports names from config/CLI like
+    "BaseActorCritic", "BaseAC", "OdometryActorCritic", or "OdometryAC".
+    Falls back to BaseActorCritic if name is None/empty.
+    """
+    # Default
+    if not model_name:
+        return BaseActorCritic
+
+    key = str(model_name)
+    key_norm = key.replace("_", "").replace(" ", "").lower()
+
+    # Quick direct matches for common defaults
+    if key_norm in {"baseactorcritic", "baseac"}:
+        return BaseActorCritic
+
+    # Dynamically scan utils.models package for classes
+    try:
+        models_pkg = importlib.import_module('utils.models')
+        discovered = []
+        for finder, mod_name, is_pkg in pkgutil.walk_packages(models_pkg.__path__, models_pkg.__name__ + '.'):
+            try:
+                module = importlib.import_module(mod_name)
+            except Exception:
+                continue
+            for attr_name, obj in inspect.getmembers(module, inspect.isclass):
+                # Only consider classes that are defined in the module (avoid imported aliases)
+                if getattr(obj, '__module__', '').startswith(mod_name):
+                    try:
+                        import torch
+                        if issubclass(obj, torch.nn.Module):
+                            discovered.append(obj)
+                    except Exception:
+                        continue
+        # Try exact name match first
+        for cls in discovered:
+            if cls.__name__ == key:
+                return cls
+        # Try normalized name match (ignore underscores/spaces and case)
+        for cls in discovered:
+            if cls.__name__.replace("_", "").replace(" ", "").lower() == key_norm:
+                return cls
+        # As a convenience, prefer classes ending with 'ActorCritic' if multiple choices
+        for cls in discovered:
+            if cls.__name__.lower().endswith('actorcritic') and cls.__name__.lower() == key_norm:
+                return cls
+        available = ', '.join(sorted({c.__name__ for c in discovered}))
+        raise ValueError(f"Unknown model class: {model_name}. Available: {available}")
+    except Exception as e:
+        raise ValueError(f"Unknown model class: {model_name} ({e})")
+
+
 class Runner:
 
     def __init__(self, test=False):
@@ -97,7 +151,10 @@ class Runner:
 
         self.device = self.cfg["basic"]["rl_device"]
         self.learning_rate = self.cfg["algorithm"]["learning_rate"]
-        self.model = BaseActorCritic(self.env.num_actions, self.env.num_obs, self.env.num_privileged_obs).to(self.device)
+        # Select model by config/CLI
+        model_name = self.cfg["basic"].get("model", "BaseActorCritic")
+        model_class = get_model_class(model_name)
+        self.model = model_class(self.env.num_actions, self.env.num_obs, self.env.num_privileged_obs).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self._load()
 
@@ -119,6 +176,7 @@ class Runner:
         parser.add_argument("--rl_device", type=str, help="Device for the RL algorithm. Overrides config file if provided.")
         parser.add_argument("--seed", type=int, help="Random seed. Overrides config file if provided.")
         parser.add_argument("--max_iterations", type=int, help="Maximum number of training iterations. Overrides config file if provided.")
+        parser.add_argument("--model", type=str, help="Model class name to use (e.g., BaseActorCritic, OdometryActorCritic). Overrides config file if provided.")
         self.args = parser.parse_args()
 
     # Override config file with args if needed
@@ -126,6 +184,9 @@ class Runner:
         cfg_file = os.path.join("envs", "{}.yaml".format(self.args.task))
         with open(cfg_file, "r", encoding="utf-8") as f:
             self.cfg = yaml.load(f.read(), Loader=yaml.FullLoader)
+        # Ensure default model if not present in config
+        if "model" not in self.cfg.get("basic", {}):
+            self.cfg.setdefault("basic", {})["model"] = "BaseActorCritic"
         for arg in vars(self.args):
             if getattr(self.args, arg) is not None:
                 if arg == "num_envs":

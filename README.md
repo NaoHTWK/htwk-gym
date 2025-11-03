@@ -161,8 +161,34 @@ Training settings are loaded from `envs/<task>.yaml`. You can also override conf
 - `--rl_device`: Device for the RL algorithm (e.g., `cuda:0`, `cpu`). 
 - `--seed`: Random seed.
 - `--max_iterations`: Maximum number of training iterations.
+- `--model`: Model class to instantiate (e.g., `BaseActorCritic`, `OdometryActorCritic`).
 
 To add a new task, create a config file in `envs/` and register the environment in `envs/__init__.py`.
+
+#### Selecting and Adding Policy Models
+
+HTWK Gym supports dynamic discovery of policy network classes from `utils/models/`.
+
+- **Choose a model via config**: set in your task YAML under `basic`:
+
+  ```yaml
+  basic:
+    model: BaseActorCritic  # or OdometryActorCritic, or your custom class
+  ```
+
+- **Choose a model via CLI**:
+
+  ```sh
+  $ python train.py --task=T1/ParameterWalk --model OdometryActorCritic
+  $ python play.py  --task=T1/ParameterWalk --checkpoint=-1 --model OdometryActorCritic
+  ```
+
+- **Add a new model without code changes**:
+  1. Create a new file in `utils/models/`, e.g., `MyFancyAC.py`.
+  2. Define a class that subclasses `torch.nn.Module` with the constructor signature `(num_act, num_obs, num_privileged_obs)` and methods `act(obs)` and `est_value(obs, privileged_obs)`.
+  3. Use the class name in config or CLI as shown above. Names are matched case-insensitively and ignore underscores/spaces.
+
+Default model is `BaseActorCritic` if none is specified.
 
 #### Progress Tracking
 
