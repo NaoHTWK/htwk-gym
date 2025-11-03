@@ -14,7 +14,7 @@ from envs import *
 # Import torch and utils after isaacgym modules are initialized
 import torch
 import torch.nn.functional as F
-from utils.model import *
+from utils.models.BaseAC import *
 from utils.buffer import ExperienceBuffer
 from utils.utils import discount_values, surrogate_loss
 from utils.recorder import Recorder
@@ -97,7 +97,7 @@ class Runner:
 
         self.device = self.cfg["basic"]["rl_device"]
         self.learning_rate = self.cfg["algorithm"]["learning_rate"]
-        self.model = ActorCritic(self.env.num_actions, self.env.num_obs, self.env.num_privileged_obs).to(self.device)
+        self.model = BaseActorCritic(self.env.num_actions, self.env.num_obs, self.env.num_privileged_obs).to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self._load()
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 
-class ActorCritic(torch.nn.Module):
+class BaseActorCritic(torch.nn.Module):
 
     def __init__(self, num_act, num_obs, num_privileged_obs):
         super().__init__()
