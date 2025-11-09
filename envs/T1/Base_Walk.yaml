@@ -2,14 +2,14 @@ basic:
   checkpoint: null # set to -1 to load last saved model
   headless: true
   max_iterations: 10000 # set the maximum number of learning iterations to train for
-  sim_device: "cpu" # device for physics simulation
-  rl_device: "cpu" # device for the RL algorithm
+  sim_device: "cuda:0" # device for physics simulation
+  rl_device: "cuda:0" # device for the RL algorithm
   seed: 42 # seed - set to -1 to choose random seed
   description: ""
   task: "T1/BaseWalk"
 
 env:
-  num_envs: 1
+  num_envs: 4096
   num_observations: 47
   num_privileged_obs: 14
   num_actions: 12

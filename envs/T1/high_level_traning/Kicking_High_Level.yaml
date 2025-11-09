@@ -2,27 +2,27 @@ basic:
   checkpoint: null # set to -1 to load last saved model
   headless: false
   max_iterations: 10000 # set the maximum number of learning iterations to train for
-  sim_device: "cpu" # device for physics simulation
-  rl_device: "cpu" # device for the RL algorithm
+  sim_device: "cuda:0" # device for physics simulation
+  rl_device: "cuda:0" # device for the RL algorithm
   seed: -1 # seed - set to -1 to choose random seed
   description: ""
   enable_csv_logging: false
 
 locomotion_model:
-  checkpoint: logs/t1-thomas2/model_20000B.pth
+  checkpoint: pretrained_models/T1/parameter_walk/parameter_walk_v1.pth
   num_actions: 12
   num_observations: 54
   num_privileged_obs: 14
 
 env:
-  num_envs: 128
-  num_observations: 44
+  num_envs: 10
+  num_observations: 42
   num_privileged_obs: 16
   num_actions: 10
   env_spacing: 5.  # not used with plane terrain
 
 runner:
-  horizon_length: 24
+  horizon_length: 128
   mini_epochs: 20
   save_interval: 100
   use_wandb: true
@@ -308,14 +308,13 @@ randomization:
 rewards:
   scales:
     survival: 0.25
-    tracking_lin_vel_x: 1
-    tracking_lin_vel_y: 1
-    tracking_ang_vel: 0.25
-    action_rate: -1.5
-    ball_velocity_target_direction: 10
-    kicking_foot_approach_ball_stationary: 10
-    body_alignment_for_kick: 1
-    ball_acceleration: 0.25
+    tracking_lin_vel_x: 0.5
+    tracking_lin_vel_y: 0.5
+    tracking_ang_vel: 0.2
+    ball_velocity_target_direction: 50
+    kicking_foot_approach_ball_stationary: 20
+    body_alignment_for_kick: 0
+    ball_acceleration: 0
     waiting: -1.0
   ball_rolling_scale:
     waiting: 0.0
@@ -340,8 +339,8 @@ rewards:
   max_ball_vel_x: 3
   
   # Parameters for new kick-related rewards
-  ball_target_position: [6.0, 0.0] # Target position for ball to move toward (world frame, z should be ball radius)
-  max_ball_vel_target_reward: 10.0      # Max reward for ball velocity toward target
+  ball_target_position: [100.0, 0.0] # Target position for ball to move toward (world frame, z should be ball radius)
+  max_ball_vel_target_reward: 500.0      # Max reward for ball velocity toward target
   ball_vel_target_direction_sigma: 1.0 # Sigma for ball velocity toward target reward
   ball_velocity_decay_time: 0.1 # Time constant in seconds for ball velocity decay
 
@@ -366,7 +365,7 @@ rewards:
   min_steps_travel_after_kick: 10              # Min sim steps ball must travel after kick before rest check applies
 
   # Parameters for "ball is still for too long" reset condition
-  max_ball_still_time_s: 2
+  max_ball_still_time_s: 5
 
   # Parameters for "ball is moving for too long" reset condition
   max_ball_moving_time_s: 5

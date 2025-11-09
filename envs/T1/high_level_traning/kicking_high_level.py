@@ -41,6 +41,9 @@ class KickingHighLevel(BaseTask):
         self.locomotion_model = OdometryActorCritic(self.cfg["locomotion_model"]["num_actions"], self.cfg["locomotion_model"]["num_observations"], self.cfg["locomotion_model"]["num_privileged_obs"]).to(self.device)
         self.locomotion_model.load_state_dict(torch.load(self.cfg["locomotion_model"]["checkpoint"], map_location=self.device, weights_only=True)["model"])
 
+        self.locomotion_model.eval()
+        self.locomotion_model.requires_grad_(False)
+
 
     def _create_envs(self):
         self.num_envs = self.cfg["env"]["num_envs"]
@@ -696,8 +699,8 @@ class KickingHighLevel(BaseTask):
     def step(self, actions):
         # pre physics step
         self.behavior_actions = torch.clip(actions, self.clip_actions[:,0], self.clip_actions[:,1])
-        locomotion_act = self._get_locomotion_actions(self.behavior_actions)
-        dof_targets = self.default_dof_pos + self.cfg["control"]["action_scale"] * locomotion_act
+        self.actions[:] = self._get_locomotion_actions()
+        dof_targets = self.default_dof_pos + self.cfg["control"]["action_scale"] * self.actions[:]
 
         # perform physics step
         self.torques.zero_()
@@ -748,6 +751,7 @@ class KickingHighLevel(BaseTask):
             torch.zeros_like(self.min_ball_vel_buf)
         )
         self.common_step_counter += 1
+        self.gait_frequency = self.behavior_actions[:,3]
         self.gait_process[:] = torch.fmod(self.gait_process + self.dt * self.gait_frequency, 1.0)
 
         # Update time_since_ball_is_still_buf
@@ -809,23 +813,24 @@ class KickingHighLevel(BaseTask):
 
         return self.obs_buf, self.rew_buf, self.reset_buf, self.extras
 
-    def _get_locomotion_actions(self, behavior_actions):
-        locomotion_obs_buf = torch.cat(
-            (
-                apply_randomization(self.projected_gravity, self.cfg["noise"].get("gravity")) * self.cfg["normalization"]["gravity"],
-                apply_randomization(self.base_ang_vel, self.cfg["noise"].get("ang_vel")) * self.cfg["normalization"]["ang_vel"],
-                behavior_actions[:, :10],
-                (torch.cos(2 * torch.pi * self.gait_process) * (self.gait_frequency > 1.0e-8).float()).unsqueeze(-1),
-                (torch.sin(2 * torch.pi * self.gait_process) * (self.gait_frequency > 1.0e-8).float()).unsqueeze(-1),
-                apply_randomization(self.dof_pos - self.default_dof_pos, self.cfg["noise"].get("dof_pos")) * self.cfg["normalization"]["dof_pos"],
-                apply_randomization(self.dof_vel, self.cfg["noise"].get("dof_vel")) * self.cfg["normalization"]["dof_vel"],
-                self.actions,
-            ),
-            dim=-1,
-        )
-        locomotion_dist = self.locomotion_model.act(locomotion_obs_buf)
-        locomotion_act = locomotion_dist.mean  # Use mean for deterministic actions from pre-trained model
-        return locomotion_act
+    def _get_locomotion_actions(self):
+        with torch.inference_mode():
+            locomotion_obs_buf = torch.cat(
+                (
+                    apply_randomization(self.projected_gravity, self.cfg["noise"].get("gravity")) * self.cfg["normalization"]["gravity"],
+                    apply_randomization(self.base_ang_vel, self.cfg["noise"].get("ang_vel")) * self.cfg["normalization"]["ang_vel"],
+                    self.behavior_actions[:, :10],
+                    (torch.cos(2 * torch.pi * self.gait_process) * (self.gait_frequency > 1.0e-8).float()).unsqueeze(-1),
+                    (torch.sin(2 * torch.pi * self.gait_process) * (self.gait_frequency > 1.0e-8).float()).unsqueeze(-1),
+                    apply_randomization(self.dof_pos - self.default_dof_pos, self.cfg["noise"].get("dof_pos")) * self.cfg["normalization"]["dof_pos"],
+                    apply_randomization(self.dof_vel, self.cfg["noise"].get("dof_vel")) * self.cfg["normalization"]["dof_vel"],
+                    self.actions,
+                ),
+                dim=-1,
+            )
+            locomotion_dist = self.locomotion_model.act(locomotion_obs_buf)
+            locomotion_act = locomotion_dist.mean  # Use mean for deterministic actions from pre-trained model
+            return locomotion_act
 
     def _kick_robots(self):
         """Random kick the robots. Emulates an impulse by setting a randomized base velocity."""
@@ -892,10 +897,12 @@ class KickingHighLevel(BaseTask):
         # Add termination if ball is still for too long
         max_ball_still_time = self.cfg["rewards"].get("max_ball_still_time_s", 4.0) # Configurable duration
         self.reset_buf |= self.time_since_ball_is_still_buf > max_ball_still_time
+        self.time_out_buf |= self.time_since_ball_is_still_buf > max_ball_still_time
 
         # Add termination if ball is moving for too long
         max_ball_moving_time = self.cfg["rewards"].get("max_ball_moving_time_s", 4.0) # Configurable duration
         self.reset_buf |= self.time_since_ball_is_moving_buf > max_ball_moving_time
+        self.time_out_buf |= self.time_since_ball_is_moving_buf > max_ball_moving_time
 
         # count a success if ball is moving for too long
         self.env_successes += torch.sum(self.min_ball_vel_buf > np.ceil(self.cfg["rewards"]["min_ball_vel_s"] / self.dt))
@@ -957,8 +964,7 @@ class KickingHighLevel(BaseTask):
                 apply_randomization(self.projected_gravity, self.cfg["noise"].get("gravity")) * self.cfg["normalization"]["gravity"],
                 apply_randomization(self.base_ang_vel, self.cfg["noise"].get("ang_vel")) * self.cfg["normalization"]["ang_vel"],
                 # Use relative ball position in observations
-                apply_randomization(relative_ball_pos[:, 0:2], self.cfg["noise"].get("ball_pos")) * self.cfg["normalization"]["ball_pos"],  
-                apply_randomization(self.ball_lin_vel[:, 0:2], self.cfg["noise"].get("ball_vel")) * self.cfg["normalization"]["ball_vel"],
+                apply_randomization(relative_ball_pos[:, 0:2], self.cfg["noise"].get("ball_pos")) * self.cfg["normalization"]["ball_pos"],
                 apply_randomization(self.dof_pos - self.default_dof_pos, self.cfg["noise"].get("dof_pos")) * self.cfg["normalization"]["dof_pos"],
                 apply_randomization(self.dof_vel, self.cfg["noise"].get("dof_vel")) * self.cfg["normalization"]["dof_vel"],
                 self.behavior_actions,
