@@ -133,9 +133,9 @@ class BaseTask:
                 self.camera = self.gym.create_camera_sensor(self.envs[self.cfg["viewer"]["record_env_idx"]], camera_props)
                 self.camera_frames = []
             cam_pos = gymapi.Vec3(
-                *(x + y for x, y in zip(self.root_states[self.cfg["viewer"]["record_env_idx"],0, 0:3].tolist(), self.cfg["viewer"]["pos"]))
+                *(x + y for x, y in zip(self.root_states[self.cfg["viewer"]["record_env_idx"], 0:3].tolist(), self.cfg["viewer"]["pos"]))
             )
-            cam_target = gymapi.Vec3(*self.root_states[self.cfg["viewer"]["record_env_idx"], 0, 0:3].tolist())
+            cam_target = gymapi.Vec3(*self.root_states[self.cfg["viewer"]["record_env_idx"], 0:3].tolist())
             self.gym.set_camera_location(self.camera, self.envs[self.cfg["viewer"]["record_env_idx"]], cam_pos, cam_target)
             self.gym.render_all_camera_sensors(self.sim)
             img = self.gym.get_camera_image(self.sim, self.envs[self.cfg["viewer"]["record_env_idx"]], self.camera, gymapi.IMAGE_COLOR)

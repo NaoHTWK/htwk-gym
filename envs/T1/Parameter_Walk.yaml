@@ -2,15 +2,15 @@ basic:
   checkpoint: null # set to -1 to load last saved model
   headless: false
   max_iterations: 20000 # set the maximum number of learning iterations to train for
-  sim_device: "cpu" # device for physics simulation
-  rl_device: "cpu" # device for the RL algorithm
+  sim_device: "cuda:0" # device for physics simulation
+  rl_device: "cuda:0" # device for the RL algorithm
   seed: 42 # seed - set to -1 to choose random seed
   description: ""
   debug_feet_offset: false # enable debug print for feet_x_offset in play mode
   task: "T1/ParameterWalk"
 
 env:
-  num_envs: 1
+  num_envs: 10
   num_observations: 54
   num_privileged_obs: 14
   num_actions: 12
@@ -20,7 +20,7 @@ runner:
   horizon_length: 24
   mini_epochs: 20
   save_interval: 100
-  use_wandb: false
+  use_wandb: true
 
 viewer:
   pos: [3., -3., 2.]  # [m]
@@ -128,7 +128,7 @@ commands:
   foot_yaw_R:         [-0.7,  0.7]     # [rad]
   body_pitch_target:  [-0.1,  0.3]     # [rad], 0 = upright, ±0.3 ≈ ±17°
   body_roll_target:   [-0.1,  0.1]     # [rad], 0 = upright, ±0.2 ≈ ±11°
-  feet_offset_x_target: [-0.25, 0.25]    # [m], target x-offset between feet during swing phases
+  feet_offset_x_target: [0, 0.]    # [m], target x-offset between feet during swing phases
   feet_offset_y_target: [-0.2, 0.2]    # [m], target y-offset between feet during swing phases
   
   resampling_time_s: [3., 8.]
@@ -227,7 +227,7 @@ rewards:
     feet_yaw_mean: -0.5      # Now tracks commanded foot yaw mean
     feet_roll: -0.2
     feet_pitch: -0.1         # Penalize feet pitch deviation
-    feet_offset_x: -20.      # Tracks feet x-offset target
+    feet_offset_x: 0      # Tracks feet x-offset target
     feet_offset_y: -20.      # Tracks feet y-offset target
     feet_swing: 3.
   episode_length_s: 30.

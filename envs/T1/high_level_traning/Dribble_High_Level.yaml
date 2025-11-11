@@ -1,0 +1,375 @@
+basic:
+  checkpoint: null # set to -1 to load last saved model
+  headless: false
+  max_iterations: 10000 # set the maximum number of learning iterations to train for
+  sim_device: "cuda:0" # device for physics simulation
+  rl_device: "cuda:0" # device for the RL algorithm
+  seed: -1 # seed - set to -1 to choose random seed
+  description: ""
+  enable_csv_logging: false
+
+locomotion_model:
+  checkpoint: pretrained_models/T1/parameter_walk/parameter_walk_v1.pth
+  num_actions: 12
+  num_observations: 54
+  num_privileged_obs: 14
+
+env:
+  num_envs: 10
+  num_observations: 42
+  num_privileged_obs: 16
+  num_actions: 10
+  env_spacing: 5.  # not used with plane terrain
+
+runner:
+  horizon_length: 128
+  mini_epochs: 20
+  save_interval: 100
+  use_wandb: true
+
+viewer:
+  pos: [3., -3., 2.]  # [m]
+  lookat: [15., 0., 0.]  # [m]
+  record_video: true  # only in play
+  record_interval: 5.  # [s]
+  record_env_idx: 0
+
+algorithm:
+  learning_rate: 1.e-5
+  gamma: 0.995
+  lam: 0.95
+  bound_coef: 1.0
+  entropy_coef: -0.01
+  symmetric_coef: 10.
+  desired_kl: 0.01
+
+sim:
+  dt: 0.002
+  substeps: 1
+  up_axis: "z"
+  gravity: [0.0, 0.0, -9.81]
+  physics_engine: "physx" # "physx" or "flex"
+  physx:
+    #num_threads: 4 # Number of worker threads per scene used by PhysX - for CPU PhysX only.
+    solver_type: 1 # 0: pgs, 1: tgs
+    num_position_iterations: 4
+    num_velocity_iterations: 1
+    contact_offset: 0.02
+    rest_offset: 0.0
+    bounce_threshold_velocity: 0.2
+    max_depenetration_velocity: 100.0
+    default_buffer_size_multiplier: 5.0
+    max_gpu_contact_pairs: 8388608 # 8*1024*1024
+    num_subscenes: 4 # Splits the simulation into N physics scenes and runs each one in a separate thread
+    contact_collection: 1 # 0: CC_NEVER (don't collect contact info), 1: CC_LAST_SUBSTEP (collect only contacts on last substep), 2: CC_ALL_SUBSTEPS (broken - do not use!)
+
+asset:
+  file: "resources/T1/T1_locomotion.urdf"
+  mujoco_file: "resources/T1/T1_locomotion.xml"
+  name: "T1"
+  base_name: "Trunk"
+  foot_names: ["left_foot_link", "right_foot_link"]
+  disable_gravity: false
+  default_dof_drive_mode: 3 # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
+  collapse_fixed_joints: true # bug: if collapse_fixed_joints = false, foot doesn't collide with ground
+  fix_base_link: false # fix the base of the robot
+  self_collisions: 0 # 1 to disable, 0 to enable...bitwise filter
+  replace_cylinder_with_capsule: true # replace collision cylinders with capsules, leads to faster/more stable simulation
+  flip_visual_attachments: false # Some .obj meshes must be flipped from y-up to z-up
+  density: 0.001
+  angular_damping: 0.
+  linear_damping: 0.
+  max_angular_velocity: 1000.
+  max_linear_velocity: 1000.
+  armature: 0.
+  thickness: 0.01
+  feet_edge_pos: [[ 0.1215,  0.05, -0.03],
+                  [ 0.1215, -0.05, -0.03],
+                  [-0.1015,  0.05, -0.03],
+                  [-0.1015, -0.05, -0.03]] # x,y,z [m]
+
+ball:
+  file: "resources/T1/ball.urdf"
+  name: "ball"
+  init_pos: [0.3, 0.0, 0.06]  # Initial position of the ball
+  init_rot: [0.0, 0.0, 0.0, 1.0]  # Initial rotation (quaternion)
+  init_lin_vel: [0.0, 0.0, 0.0]  # Initial linear velocity
+  init_ang_vel: [0.0, 0.0, 0.0]  # Initial angular velocity
+  restitution: 0.0  # Bounciness
+  friction: 1  # Friction coefficient
+  rolling_friction: 1  # Rolling friction coefficient
+  contact_offset: 0.005
+  density: 0.001
+  thickness: 0.01
+
+init_state:
+  pos: [0.0, 0.0, 0.72] # x,y,z [m]
+  rot: [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat]
+  lin_vel: [0.0, 0.0, 0.0]  # x,y,z [m/s]
+  ang_vel: [0.0, 0.0, 0.0]  # x,y,z [rad/s]
+  ball_pos: [0.5, 0.0, 0.05]  # x,y,z [m]
+  default_joint_angles: {"Hip_Pitch": -0.2, "Knee_Pitch": 0.4, "Ankle_Pitch": -0.25, "default": 0.} # target angles when action = 0.0
+
+control:
+  stiffness: {"Hip": 200., "Knee": 200., "Ankle": 50.} # [N*m/rad]
+  damping: {"Hip": 5., "Knee": 5., "Ankle": 1.} # [N*m*s/rad]
+  action_scale: 1.
+  decimation: 10
+
+terrain:
+  type: "plane" # "plane" or "trimesh"
+  static_friction: 1.0  # [-]
+  dynamic_friction: 1.0  # [-]
+  restitution: 0.        # [-]
+  # trimesh only:
+  terrain_length: 10.
+  terrain_width: 10.
+  border_size: 5.
+  num_terrains: 8
+  terrain_proportions: [0.0, 0.0, 0.5, 0.5] # terrain types: [plane, slope, random, discrete]
+  slope: 0.1
+  random_height: 0.1
+  discrete_height: 0.02
+  horizontal_scale: 0.1
+  vertical_scale: 0.005
+  slope_threshold: 2.0
+
+commands:
+  num_commands: 0 # default: lin_vel_x, lin_vel_y, ang_vel_yaw
+  still_proportion: 0.1
+  lin_vel_x_resolution: 0.2 # [m/s]
+  lin_vel_y_resolution: 0.1 # [m/s]
+  ang_vel_resolution: 0.2 # [rad/s]
+  episode_length_toler: 0.1
+  lin_vel_x_toler: 0.4 # [m/s]
+  lin_vel_y_toler: 0.2 # [m/s]
+  ang_vel_yaw_toler: 0.2 # [rad/s]
+   # curriculum only:
+  curriculum: false
+  update_rate: 0.1
+  lin_vel_levels: 10
+  ang_vel_levels: 10
+  lin_vel_x_resolution: 0.2 # [m/s]
+  lin_vel_y_resolution: 0.1 # [m/s]
+  ang_vel_resolution: 0.2 # [rad/s]
+  episode_length_toler: 0.1
+  lin_vel_x_toler: 0.4 # [m/s]
+  lin_vel_y_toler: 0.2 # [m/s]
+  ang_vel_yaw_toler: 0.2 # [rad/s]
+
+normalization:
+  gravity: 1.0
+  lin_vel: 1.0
+  ang_vel: 1.0
+  dof_pos: 1.0
+  dof_vel: 0.1
+  filter_weight: 0.1
+  push_force: 0.1
+  push_torque: 0.5
+  clip_actions:
+    [[-1.2, 1.2], # lin_vel_x
+    [-1.2, 1.2], # lin_vel_y
+    [-1.6, 1.6], # ang_vel_yaw
+    [1.2, 2.2], # gait_frequency
+    [-0.7, 0.7], # foot_yaw_L
+    [-0.7, 0.7], # foot_yaw_R
+    [-0.1, 0.3], # body_pitch_target
+    [-0.1, 0.1], # body_roll_target
+    [-0.25, 0.25], # feet_offset_x_target
+    [-0.2, 0.2]] # feet_offset_y_target
+  ball_pos: 1.0
+  ball_vel: 1.0
+
+noise:
+  gravity:
+    range: [0., 0.01]
+    operation: "additive"
+    distribution: "gaussian"
+  lin_vel:
+    range: [0., 0.05]
+    operation: "additive"
+    distribution: "gaussian"
+  ang_vel:
+    range: [0., 0.1]
+    operation: "additive"
+    distribution: "gaussian"
+  dof_pos:
+    range: [0., 0.01]
+    operation: "additive"
+    distribution: "gaussian"
+  dof_vel:
+    range: [0., 0.1]
+    operation: "additive"
+    distribution: "gaussian"
+  height:
+    range: [0., 0.02]
+    operation: "additive"
+    distribution: "gaussian"
+  ball_pos:
+    range: [-0.01, 0.01]
+    operation: "additive"
+    distribution: "gaussian"
+  ball_vel:
+    range: [-0.01, 0.01]
+    operation: "additive"
+    distribution: "gaussian"
+
+randomization:
+  init_dof_pos:
+    range: [0., 0.05]
+    operation: "additive"
+    distribution: "gaussian"
+  init_base_pos_xy:
+    range: [-1., 1.]
+    operation: "additive"
+    distribution: "uniform"
+  init_base_lin_vel_xy:
+    range: [0., 0.1]
+    operation: "additive"
+    distribution: "gaussian"
+  init_base_ang:
+    range: [-0.1, 0.1]
+    operation: "additive"
+    distribution: "gaussian"
+
+  ball_init_pos_x:
+    range: [0.25, 0.4]
+    operation: "additive"
+    distribution: "uniform"
+  ball_init_pos_y:
+    range: [0, 0.2]
+    operation: "additive"
+    distribution: "uniform"
+
+  kick_interval_s: 2.
+  kick_lin_vel:
+    range: [0., 0.]
+    operation: "additive"
+    distribution: "gaussian"
+  kick_ang_vel:
+    range: [0., 0.0]
+    operation: "additive"
+    distribution: "gaussian"
+
+  push_interval_s: 5.
+  push_duration_s: 1.
+  push_force:
+    range: [0., 0.]
+    operation: "additive"
+    distribution: "gaussian"
+  push_torque:
+    range: [0., 0.]
+    operation: "additive"
+    distribution: "gaussian"
+
+  dof_stiffness:
+    range: [0.95, 1.05]
+    operation: "scaling"
+    distribution: "uniform"
+  dof_damping:
+    range: [0.95, 1.05]
+    operation: "scaling"
+    distribution: "uniform"
+  dof_friction:
+    range: [0.0, 2.0]
+    operation: "additive"
+    distribution: "uniform"
+
+  friction:
+    range: [0.1, 2.0]
+    operation: "additive"
+    distribution: "uniform"
+  compliance:
+    range: [0.5, 1.5]
+    operation: "additive"
+    distribution: "uniform"
+  restitution:
+    range: [0.1, 0.9]
+    operation: "additive"
+    distribution: "uniform"
+
+  base_com:
+    range: [-0.1, 0.1]
+    operation: "additive"
+    distribution: "uniform"
+  base_mass:
+    range: [0.8, 1.2]
+    operation: "scaling"
+    distribution: "uniform"
+  other_com:
+    range: [-0.005, 0.005]
+    operation: "additive"
+    distribution: "uniform"
+  other_mass:
+    range: [0.98, 1.02]
+    operation: "scaling"
+    distribution: "uniform"
+
+rewards:
+  scales:
+    survival: 0.25
+    tracking_lin_vel_x: 0.5
+    tracking_lin_vel_y: 0.5
+    tracking_ang_vel: 0.2
+    ball_velocity_target_direction: 50
+    kicking_foot_approach_ball_stationary: 20
+    body_alignment_for_kick: 0
+    ball_acceleration: 0
+    waiting: -1.0
+  ball_rolling_scale:
+    waiting: 0.0
+    survival: 0.5
+    kicking_foot_approach_ball_stationary: 0
+
+  episode_length_s: 7.
+  terminate_height: 0.45
+  terminate_vel: 50.
+  terminate_contacts_on: []
+  penalize_contacts_on: ["Trunk", "H1", "H2", "AL", "AR", "Waist", "Hip", "Shank", "Ankle"]
+  only_positive_rewards: false # if true negative total rewards are clipped at zero (avoids early termination problems)
+  tracking_sigma: 0.25 # tracking reward = exp(-error^2/sigma)
+  base_height_target: 0.68
+  soft_dof_pos_limit: 1. # percentage of urdf limits, values above this limit are penalized
+  soft_dof_vel_limit: 1.
+  soft_torque_limit: 1.
+  swing_period: 0.2
+  feet_distance_ref_x: 0.05
+  feet_distance_ref_y: 0
+  min_ball_vel_s: 2
+  max_ball_vel_x: 3
+  
+  # Parameters for new kick-related rewards
+  ball_target_position: [100.0, 0.0] # Target position for ball to move toward (world frame, z should be ball radius)
+  max_ball_vel_target_reward: 500.0      # Max reward for ball velocity toward target
+  ball_vel_target_direction_sigma: 1.0 # Sigma for ball velocity toward target reward
+  ball_velocity_decay_time: 0.1 # Time constant in seconds for ball velocity decay
+
+  kicking_foot_index: 0                # 0 for left_foot_link, 1 for right_foot_link
+  # kick_velocity_threshold: 0.2         # Min change in ball speed (m/s) to be a kick event
+  # foot_kick_proximity_sigma: 0.1       # Sigma for proximity reward in foot_ball_proximity_and_kick_timing
+  # max_kick_timing_reward: 2.0          # Max reward for foot_ball_proximity_and_kick_timing
+
+  # Parameters for _reward_kicking_foot_approach_ball_stationary
+  ball_stationary_speed_threshold: 0.1 # Max ball speed (m/s) to be considered stationary
+  approach_proximity_sigma: 0.1        # Sigma for proximity reward in kicking_foot_approach_ball_stationary
+  max_approach_reward: 50.0             # Max reward for kicking_foot_approach_ball_stationary
+
+  kick_target_pos_world: [5.0, 0.0, 0.05] # Target position for body alignment (world frame, z should be ball radius)
+  alignment_to_ball_sigma: 0.5         # Sigma for robot-to-ball alignment
+  alignment_to_target_sigma: 0.5       # Sigma for robot-to-target alignment
+  max_alignment_reward: 1.0            # Max reward for body_alignment_for_kick
+  
+  # Parameters for "ball comes to rest after kick" reset condition
+  kick_detection_speed_increase_threshold: 0.5 # Min ball speed increase (m/s) to detect a kick
+  ball_rest_speed_threshold_after_kick: 0.02   # Max ball speed (m/s) to be considered at rest after a kick
+  min_steps_travel_after_kick: 10              # Min sim steps ball must travel after kick before rest check applies
+
+  # Parameters for "ball is still for too long" reset condition
+  max_ball_still_time_s: 5
+
+  # Parameters for "ball is moving for too long" reset condition
+  max_ball_moving_time_s: 5
+
+  # Parameters for ball acceleration reward
+  ball_acceleration_scale: 80.0        # Scaling factor for acceleration towards target
+  max_ball_acceleration_reward: 80.0    # Maximum reward for ball acceleration towards target
