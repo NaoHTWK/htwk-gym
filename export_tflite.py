@@ -13,7 +13,7 @@ import numpy as np
 import torch, onnx
 from onnx_tf.backend import prepare
 import tensorflow as tf
-from utils.model_thomas import ActorCritic          # <-- changed to use Thomas model with odometry
+from utils.models.BaseAC import BaseActorCritic          # <-- changed to use Thomas model with odometry
 
 def get_robot_type(task_name):
     """Determine robot type from task name."""
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     print(f"[*] Loading checkpoint {ckpt}")
 
     # ---------- 2.  Restore PyTorch model ------------------------------------------
-    model = ActorCritic(
+    model = BaseActorCritic(
         cfg["env"]["num_actions"],
         cfg["env"]["num_observations"],
         cfg["env"]["num_privileged_obs"]
