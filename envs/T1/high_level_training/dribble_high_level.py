@@ -988,10 +988,10 @@ class DribbleHighLevel(BaseTask):
                 apply_randomization(self.base_ang_vel, self.cfg["noise"].get("ang_vel")) * self.cfg["normalization"]["ang_vel"],
                 # Use relative ball position in observations
                 apply_randomization(relative_ball_pos[:, 0:2], self.cfg["noise"].get("ball_pos")) * self.cfg["normalization"]["ball_pos"],
-                apply_randomization(self.dof_pos - self.default_dof_pos, self.cfg["noise"].get("dof_pos")) * self.cfg["normalization"]["dof_pos"],
-                apply_randomization(self.dof_vel, self.cfg["noise"].get("dof_vel")) * self.cfg["normalization"]["dof_vel"],
                 # Add ball target velocity commands
                 self.commands[:, 0:2] * self.cfg["normalization"]["ball_target_vel"],
+                apply_randomization(self.dof_pos - self.default_dof_pos, self.cfg["noise"].get("dof_pos")) * self.cfg["normalization"]["dof_pos"],
+                apply_randomization(self.dof_vel, self.cfg["noise"].get("dof_vel")) * self.cfg["normalization"]["dof_vel"],
                 self.behavior_actions,
             ),
             dim=-1,
@@ -1013,6 +1013,13 @@ class DribbleHighLevel(BaseTask):
     def _reward_survival(self):
         # Reward survival
         return torch.ones(self.num_envs, dtype=torch.float, device=self.device)
+    
+    
+    def _reward_termination(self):
+        """Penalizes actor termination"""
+        # Return 1.0 when terminating, 0.0 otherwise
+        # The scale in config should be negative to make this a penalty
+        return self.reset_buf.float()
 
     def _reward_tracking_lin_vel_x(self):
         # Tracking of linear velocity commands (x axes)

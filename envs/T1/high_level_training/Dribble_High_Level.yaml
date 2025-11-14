@@ -1,9 +1,9 @@
 basic:
   checkpoint: null # set to -1 to load last saved model
-  headless: false
+  headless: true
   max_iterations: 10000 # set the maximum number of learning iterations to train for
-  sim_device: "cpu" # device for physics simulation
-  rl_device: "cpu" # device for the RL algorithm
+  sim_device: "cuda:0" # device for physics simulation
+  rl_device: "cuda:0" # device for the RL algorithm
   seed: -1 # seed - set to -1 to choose random seed
   description: ""
   enable_csv_logging: false
@@ -15,14 +15,14 @@ locomotion_model:
   num_privileged_obs: 14
 
 env:
-  num_envs: 10
+  num_envs: 2048
   num_observations: 44  # 42 + 2 for ball target velocity commands
   num_privileged_obs: 16
   num_actions: 10
   env_spacing: 5.  # not used with plane terrain
 
 runner:
-  horizon_length: 128
+  horizon_length: 256
   mini_epochs: 20
   save_interval: 100
   use_wandb: true
@@ -164,7 +164,7 @@ normalization:
     [-0.1, 0.1], # body_roll_target
     [-0.25, 0.25], # feet_offset_x_target
     [-0.2, 0.2]] # feet_offset_y_target
-  ball_pos: 1.0
+  ball_pos: .33333333333
   ball_vel: 1.0
   ball_target_vel: 1.0  # No scaling needed
 
@@ -295,22 +295,14 @@ randomization:
 
 rewards:
   scales:
-    survival: 0.5
-    tracking_lin_vel_x: 0.0  # Don't constrain robot velocity directly
-    tracking_lin_vel_y: 0.0
-    tracking_ang_vel: 0.0
-    ball_velocity_tracking: 100.0  # Main reward - track target ball velocity
-    ball_distance_penalty: -50.0   # Penalty for being far from ball
-    ball_height_penalty: -5.0      # Penalty for ball leaving ground
-    orientation: -1.0              # Keep robot upright
-    torques: -0.0001               # Minimize energy
-    dof_acc: -1.0e-7               # Smooth joint motion
-    action_rate: -0.01             # Smooth action changes
+    ball_velocity_tracking: 2.0  # Main reward - track target ball velocity
+    ball_distance_penalty: -0.005   # Penalty for being far from ball
+    termination: -100
   
   ball_vel_tracking_sigma: 0.3      # Sigma for velocity tracking reward
   ball_distance_sigma: 0.5          # Sigma for distance penalty (0.5m = moderate penalty)
   
-  episode_length_s: 12.0            # Fixed 12 second episodes
+  episode_length_s: 60.0            # Fixed 12 second episodes
   max_ball_distance: 3.0            # Reset if ball goes >3m from robot
   terminate_height: 0.45
   terminate_vel: 50.
