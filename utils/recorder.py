@@ -126,19 +126,48 @@ class Recorder:
         import numpy as np
         
         # Convert frames from RGBA to RGB format
-        # frames are stored as (height, width, 4) arrays
+        # Isaac Gym returns images in BGRA format, so we need to convert
         video_array = []
         for frame in frames:
-            # frame shape is (height, width, 4) for RGBA
-            # Convert to RGB by taking first 3 channels
-            if len(frame.shape) == 3 and frame.shape[2] == 4:
-                rgb_frame = frame[:, :, :3]
+            # Handle different frame shapes
+            if len(frame.shape) == 3:
+                if frame.shape[2] == 4:
+                    # Isaac Gym returns BGRA format, convert to RGB
+                    # Take BGR channels and reverse to RGB: [B, G, R, A] -> [R, G, B]
+                    rgb_frame = frame[:, :, [2, 1, 0]]  # BGR -> RGB
+                elif frame.shape[2] == 3:
+                    rgb_frame = frame
+                else:
+                    # Unexpected format, try to take first 3 channels
+                    rgb_frame = frame[:, :, :3]
+            elif len(frame.shape) == 2:
+                # Grayscale, convert to RGB by repeating channels
+                rgb_frame = np.stack([frame, frame, frame], axis=2)
             else:
-                rgb_frame = frame
+                # Try to reshape if it's a flattened image
+                # Assuming it's (height*width*4,) or similar
+                if frame.size % 4 == 0:
+                    # Try to reshape as RGBA
+                    h = int(np.sqrt(frame.size // 4))
+                    w = frame.size // (4 * h)
+                    frame_reshaped = frame.reshape(h, w, 4)
+                    rgb_frame = frame_reshaped[:, :, [2, 1, 0]]  # BGR -> RGB
+                else:
+                    continue  # Skip invalid frames
+            
             # Ensure uint8 format (0-255 range)
             if rgb_frame.dtype != np.uint8:
-                rgb_frame = np.clip(rgb_frame, 0, 255).astype(np.uint8)
+                # Handle float values in [0, 1] range
+                if rgb_frame.max() <= 1.0:
+                    rgb_frame = (rgb_frame * 255).astype(np.uint8)
+                else:
+                    rgb_frame = np.clip(rgb_frame, 0, 255).astype(np.uint8)
+            
             video_array.append(rgb_frame)
+        
+        if len(video_array) == 0:
+            print(f"Warning: No valid frames to log at iteration {it}")
+            return
         
         # Stack frames: (time, height, width, channels)
         video_tensor = np.stack(video_array, axis=0)

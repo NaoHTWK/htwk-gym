@@ -431,9 +431,16 @@ class Runner:
         Returns:
             Updated obs and privileged_obs after video capture
         """
-        # Clear existing frames
+        # Clear existing frames and ensure camera is initialized
         if hasattr(self.env, 'camera_frames'):
             self.env.camera_frames = []
+        
+        # Ensure camera is initialized by calling render once before capturing
+        # This ensures the camera exists and root_states are available
+        if self.cfg["viewer"]["record_video"]:
+            # Refresh root states to ensure camera position is correct
+            self.env.gym.refresh_actor_root_state_tensor(self.env.sim)
+            self.env.render()
         
         # Calculate number of frames to capture
         num_frames = int(duration / self.env.dt)
@@ -442,10 +449,7 @@ class Runner:
         frames_captured = 0
         
         while frames_captured < num_frames:
-            # Render to capture camera frame
-            self.env.render()
-            
-            # Step the environment with current policy
+            # Step the environment with current policy first
             with torch.no_grad():
                 dist = self.model.act(obs)
                 act = dist.sample()
@@ -453,6 +457,13 @@ class Runner:
             obs, rew, done, infos = self.env.step(act)
             obs, rew, done = obs.to(self.device), rew.to(self.device), done.to(self.device)
             privileged_obs = infos["privileged_obs"].to(self.device)
+            
+            # step() already calls render() internally which captures frames
+            # But we ensure render is called to capture the frame
+            # The render() in step() should have already captured the frame,
+            # but we call it again to be safe (it's idempotent for frame capture)
+            if self.cfg["viewer"]["record_video"]:
+                self.env.render()
             
             frames_captured += 1
             
