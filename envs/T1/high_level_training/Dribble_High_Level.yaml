@@ -7,6 +7,9 @@ basic:
   seed: -1 # seed - set to -1 to choose random seed
   description: ""
   enable_csv_logging: false
+  log_video_interval: 1  # Log video to wandb every N iterations (defaults to save_interval if not specified)
+  log_video_duration: 10.  # Duration of video clip in seconds
+
 
 locomotion_model:
   checkpoint: pretrained_models/T1/parameter_walk/parameter_walk_v1.pth

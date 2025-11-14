@@ -21,6 +21,8 @@ runner:
   mini_epochs: 20
   save_interval: 100
   use_wandb: true
+  log_video_interval: 100  # Log video to wandb every N iterations (defaults to save_interval if not specified)
+  log_video_duration: 10.  # Duration of video clip in seconds
 
 viewer:
   pos: [3., -3., 2.]  # [m]

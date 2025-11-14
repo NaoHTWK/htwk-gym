@@ -108,3 +108,43 @@ class Recorder:
             return 0.0
         else:
             return sum(data) / len(data)
+
+    def log_video(self, frames, it, dt):
+        """Log video frames to wandb.
+        
+        Args:
+            frames: List of camera frames in RGBA format (height, width, 4)
+            it: Current iteration step
+            dt: Simulation timestep for calculating FPS
+        """
+        if not self.cfg["runner"]["use_wandb"]:
+            return
+        
+        if len(frames) == 0:
+            return
+        
+        import numpy as np
+        
+        # Convert frames from RGBA to RGB format
+        # frames are stored as (height, width, 4) arrays
+        video_array = []
+        for frame in frames:
+            # frame shape is (height, width, 4) for RGBA
+            # Convert to RGB by taking first 3 channels
+            if len(frame.shape) == 3 and frame.shape[2] == 4:
+                rgb_frame = frame[:, :, :3]
+            else:
+                rgb_frame = frame
+            # Ensure uint8 format (0-255 range)
+            if rgb_frame.dtype != np.uint8:
+                rgb_frame = np.clip(rgb_frame, 0, 255).astype(np.uint8)
+            video_array.append(rgb_frame)
+        
+        # Stack frames: (time, height, width, channels)
+        video_tensor = np.stack(video_array, axis=0)
+        
+        # Calculate FPS from simulation timestep (same as in play mode)
+        fps = int(1.0 / dt)
+        
+        # Log to wandb
+        wandb.log({"video/training": wandb.Video(video_tensor, fps=fps, format="mp4")}, step=it)

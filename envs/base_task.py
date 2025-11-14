@@ -34,6 +34,7 @@ class BaseTask:
         # graphics device for rendering, -1 for no rendering
         self.headless = self.cfg["basic"]["headless"]
         self.graphics_device_id = self.sim_device_id
+        # Enable graphics device if video recording is needed (even in headless mode for wandb logging)
         if self.headless and not self.cfg["viewer"]["record_video"]:
             self.graphics_device_id = -1
 

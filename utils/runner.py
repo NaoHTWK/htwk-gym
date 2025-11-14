@@ -194,7 +194,13 @@ class Runner:
                 else:
                     self.cfg["basic"][arg] = getattr(self.args, arg)
         if not self.test:
-            self.cfg["viewer"]["record_video"] = False
+            # Enable video recording if wandb video logging is enabled
+            use_wandb = self.cfg["runner"].get("use_wandb", False)
+            log_video_interval = self.cfg["runner"].get("log_video_interval", None)
+            if use_wandb and log_video_interval is not None:
+                self.cfg["viewer"]["record_video"] = True
+            else:
+                self.cfg["viewer"]["record_video"] = False
 
     def _set_seed(self):
         if self.cfg["basic"]["seed"] == -1:
@@ -249,7 +255,28 @@ class Runner:
         obs, infos = self.env.reset()
         obs = obs.to(self.device)
         privileged_obs = infos["privileged_obs"].to(self.device)
+        
+        # Get video logging configuration
+        use_wandb = self.cfg["runner"].get("use_wandb", False)
+        log_video_interval = self.cfg["runner"].get("log_video_interval", None)
+        if log_video_interval is None:
+            log_video_interval = self.cfg["runner"].get("save_interval", None)
+        # Ensure log_video_interval is a positive integer
+        if log_video_interval is not None and log_video_interval <= 0:
+            log_video_interval = None
+        log_video_duration = self.cfg["runner"].get("log_video_duration", 10.0)
+        
         for it in range(self.cfg["basic"]["max_iterations"]):
+            # Check if it's time to log a video
+            should_log_video = (use_wandb and 
+                               log_video_interval is not None and 
+                               log_video_interval > 0 and
+                               (it + 1) % log_video_interval == 0 and
+                               self.cfg["viewer"]["record_video"])
+            
+            if should_log_video:
+                # Capture video frames (this will update obs and privileged_obs)
+                obs, privileged_obs = self._capture_training_video(log_video_duration, it, obs, privileged_obs)
             # within horizon_length, env.step() is called with same act
             for n in range(self.cfg["runner"]["horizon_length"]):
                 self.buffer.update_data("obses", n, obs)
@@ -391,6 +418,57 @@ class Runner:
     def interrupt_handler(self, signal, frame):
         print("\nInterrupt received, waiting for video to finish...")
         self.interrupt = True
+
+    def _capture_training_video(self, duration, it, obs, privileged_obs):
+        """Capture video frames during training for wandb logging.
+        
+        Args:
+            duration: Duration of video in seconds
+            it: Current iteration step
+            obs: Current observations
+            privileged_obs: Current privileged observations
+            
+        Returns:
+            Updated obs and privileged_obs after video capture
+        """
+        # Clear existing frames
+        if hasattr(self.env, 'camera_frames'):
+            self.env.camera_frames = []
+        
+        # Calculate number of frames to capture
+        num_frames = int(duration / self.env.dt)
+        
+        # Capture frames by running the environment
+        frames_captured = 0
+        
+        while frames_captured < num_frames:
+            # Render to capture camera frame
+            self.env.render()
+            
+            # Step the environment with current policy
+            with torch.no_grad():
+                dist = self.model.act(obs)
+                act = dist.sample()
+            
+            obs, rew, done, infos = self.env.step(act)
+            obs, rew, done = obs.to(self.device), rew.to(self.device), done.to(self.device)
+            privileged_obs = infos["privileged_obs"].to(self.device)
+            
+            frames_captured += 1
+            
+            # Reset if episode done
+            if done.any():
+                reset_obs, reset_infos = self.env.reset()
+                obs = reset_obs.to(self.device)
+                privileged_obs = reset_infos["privileged_obs"].to(self.device)
+        
+        # Log video to wandb
+        if hasattr(self.env, 'camera_frames') and len(self.env.camera_frames) > 0:
+            self.recorder.log_video(self.env.camera_frames, it, self.env.dt)
+            # Clear frames to free memory
+            self.env.camera_frames = []
+        
+        return obs, privileged_obs
 
     def _get_robot_type(self, task_name):
         """Determine robot type from task name."""
