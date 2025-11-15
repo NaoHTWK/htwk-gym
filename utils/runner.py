@@ -468,7 +468,7 @@ class Runner:
             frames_captured += 1
             
             # Reset if episode done
-            if done.any():
+            if done[0]:
                 reset_obs, reset_infos = self.env.reset()
                 obs = reset_obs.to(self.device)
                 privileged_obs = reset_infos["privileged_obs"].to(self.device)

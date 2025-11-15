@@ -7,7 +7,7 @@ basic:
   seed: -1 # seed - set to -1 to choose random seed
   description: ""
   enable_csv_logging: false
-  log_video_interval: 1  # Log video to wandb every N iterations (defaults to save_interval if not specified)
+  log_video_interval: 2  # Log video to wandb every N iterations (defaults to save_interval if not specified)
   log_video_duration: 10.  # Duration of video clip in seconds
 
 
@@ -18,17 +18,19 @@ locomotion_model:
   num_privileged_obs: 14
 
 env:
-  num_envs: 2048
+  num_envs: 1024
   num_observations: 44  # 42 + 2 for ball target velocity commands
   num_privileged_obs: 16
   num_actions: 10
   env_spacing: 5.  # not used with plane terrain
 
 runner:
-  horizon_length: 256
-  mini_epochs: 20
+  horizon_length: 520
+  mini_epochs: 50
   save_interval: 100
   use_wandb: true
+  log_video_interval: 5  # Log video to wandb every N iterations (defaults to save_interval if not specified)
+  log_video_duration: 30.  # Duration of video clip in seconds
 
 viewer:
   pos: [3., -3., 2.]  # [m]
@@ -107,7 +109,7 @@ ball:
   contact_offset: 0.005
   density: 0.001
   thickness: 0.01
-  spawn_radius: 3.0  # Maximum distance from robot to place the ball at reset
+  spawn_radius: 2  # Maximum distance from robot to place the ball at reset
 
 init_state:
   pos: [0.0, 0.0, 0.72] # x,y,z [m]
@@ -298,15 +300,15 @@ randomization:
 
 rewards:
   scales:
-    ball_velocity_tracking: 2.0  # Main reward - track target ball velocity
-    ball_distance_penalty: -0.005   # Penalty for being far from ball
+    ball_velocity_tracking: 5.0  # Main reward - track target ball velocity
+    ball_distance_penalty: -0.05   # Penalty for being far from ball
     termination: -100
   
-  ball_vel_tracking_sigma: 0.3      # Sigma for velocity tracking reward
-  ball_distance_sigma: 0.5          # Sigma for distance penalty (0.5m = moderate penalty)
+  ball_vel_tracking_sigma: 10      # Sigma for velocity tracking reward
+  ball_distance_sigma: 1           # Sigma for distance penalty (0.5m = moderate penalty)
   
   episode_length_s: 60.0            # Fixed 12 second episodes
-  max_ball_distance: 3.0            # Reset if ball goes >3m from robot
+  max_ball_distance: 5.0            # Reset if ball goes >3m from robot
   terminate_height: 0.45
   terminate_vel: 50.
   terminate_contacts_on: []

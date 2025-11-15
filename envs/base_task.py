@@ -141,3 +141,4 @@ class BaseTask:
             self.gym.render_all_camera_sensors(self.sim)
             img = self.gym.get_camera_image(self.sim, self.envs[self.cfg["viewer"]["record_env_idx"]], self.camera, gymapi.IMAGE_COLOR)
             self.camera_frames.append(img.reshape(img.shape[0], -1, 4))
+            

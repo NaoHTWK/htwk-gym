@@ -688,7 +688,9 @@ class DribbleHighLevel(BaseTask):
 
     def _resample_commands(self):
         """Resample ball target velocity commands"""
-        env_ids = (self.episode_length_buf == self.cmd_resample_time).nonzero(as_tuple=False).flatten()
+        resample_envs = (self.episode_length_buf == self.cmd_resample_time).nonzero(as_tuple=False).flatten()
+        start_envs = (self.episode_length_buf == 0).nonzero(as_tuple=False).flatten()
+        env_ids = torch.cat([start_envs, resample_envs])
         if len(env_ids) == 0:
             return
         
@@ -710,6 +712,7 @@ class DribbleHighLevel(BaseTask):
         # Convert to cartesian coordinates (x, y)
         self.commands[env_ids, 0] = magnitude * torch.cos(angle)
         self.commands[env_ids, 1] = magnitude * torch.sin(angle)
+
         
         # Update resample time for next command
         self.cmd_resample_time[env_ids] += torch.randint(
@@ -1176,13 +1179,23 @@ class DribbleHighLevel(BaseTask):
         ball_vel_world = self.body_states[:, -1, 7:10]  # Ball velocity in world frame
         target_vel = self.commands[:, 0:2]  # Target velocity (x, y)
         
+        # Check if ball is moving (magnitude of ball velocity)
+        ball_speed = torch.norm(ball_vel_world[:, 0:2], dim=-1)
+        min_speed_threshold = self.cfg["rewards"].get("ball_vel_tracking_min_speed", 0.1)
+        
+        # Zero reward when ball is not moving
+        is_moving = ball_speed > min_speed_threshold
+        
         # Calculate velocity error in XY plane
         vel_error = torch.norm(ball_vel_world[:, 0:2] - target_vel, dim=-1)
         
         # Exponential reward (closer to target = higher reward)
-        sigma = self.cfg["rewards"].get("ball_vel_tracking_sigma", 0.3)
+        # Use a smaller sigma for higher rewards when close to target
+        sigma = self.cfg["rewards"].get("ball_vel_tracking_sigma", 0.2)
         reward = torch.exp(-vel_error / sigma)
         
+        # Zero reward when ball is not moving
+        reward = reward * is_moving.float()
         return reward
 
     def _reward_ball_distance_penalty(self):
@@ -1195,7 +1208,6 @@ class DribbleHighLevel(BaseTask):
         # Exponential penalty (closer = less penalty)
         sigma = self.cfg["rewards"].get("ball_distance_sigma", 0.5)
         penalty = torch.exp(distance / sigma) - 1.0  # 0 penalty at distance=0
-        
         return penalty
 
     def _reward_ball_height_penalty(self):

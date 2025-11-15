@@ -171,6 +171,10 @@ class Recorder:
         
         # Stack frames: (time, height, width, channels)
         video_tensor = np.stack(video_array, axis=0)
+
+        # wandb.Video expects (time, channels, width, height) format
+        # Transpose from (time, height, width, channels) to (time, channels, width, height)
+        video_tensor = np.transpose(video_tensor, (0, 3, 1, 2))
         
         # Calculate FPS from simulation timestep (same as in play mode)
         fps = int(1.0 / dt)
